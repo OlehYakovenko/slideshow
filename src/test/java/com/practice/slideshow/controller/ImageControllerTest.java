@@ -1,7 +1,6 @@
 package com.practice.slideshow.controller;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,9 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.slideshow.dto.AddImageRequest;
-import com.practice.slideshow.entity.ImageEntity;
+import com.practice.slideshow.dto.ImageResult;
+import com.practice.slideshow.dto.ImageSearchResponse;
 import com.practice.slideshow.service.ImageService;
-import java.util.List;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,52 +23,55 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ImageController.class)
 class ImageControllerTest {
-  private final Long imageId = 1L;
 
   @Autowired
-  private MockMvc mockMvc;
+  MockMvc mockMvc;
 
   @MockBean
-  private ImageService imageService;
+  ImageService imageService;
 
   @Autowired
-  private ObjectMapper objectMapper;
+  ObjectMapper objectMapper;
 
   @Test
-  void shouldAddImage() throws Exception {
+  void addImage_ShouldReturnCreatedAndImageId() throws Exception {
     // Given
-    AddImageRequest request = new AddImageRequest("https://example.com/image.jpg", 5);
-    given(imageService.addImage(request.url(), request.duration()))
-        .willReturn(ImageEntity.builder().id(imageId).url(request.url())
-            .duration(request.duration()).build());
+    AddImageRequest request = new AddImageRequest("https://example.com/image.jpg", 10);
+    var image = com.practice.slideshow.entity.ImageEntity.builder().id(1L).url(request.url()).duration(request.duration()).build();
+    Mockito.when(imageService.addImage(request.url(), request.duration())).thenReturn(image);
 
     // When & Then
-    mockMvc.perform(post("/images/addImage")
+    mockMvc.perform(post("/image")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isCreated());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").value(1))
+        .andExpect(jsonPath("$.url").value("https://example.com/image.jpg"))
+        .andExpect(jsonPath("$.duration").value(10));
   }
 
   @Test
-  void shouldDeleteImage() throws Exception {
-    // Given
+  void deleteImage_ShouldReturnNoContent() throws Exception {
+    Long imageId = 10L;
     Mockito.doNothing().when(imageService).deleteImage(imageId);
 
-    // When & Then
-    mockMvc.perform(delete("/images/deleteImage/{id}", imageId))
+    mockMvc.perform(delete("/image/{id}", imageId))
         .andExpect(status().isNoContent());
   }
 
   @Test
-  void shouldSearchImages() throws Exception {
-    // Given
-    String keyword = "image";
-    given(imageService.searchImages(keyword)).willReturn(List.of());
+  void searchImages_ShouldReturnResults() throws Exception {
+    String keyword = "test";
+    var response = ImageSearchResponse.builder()
+        .results(Collections.singletonList(
+            ImageResult.builder().imageId(100L).url("https://example.com/img.jpg").duration(5).associatedSlideshows(Collections.emptyList()).build()
+        )).build();
 
-    // When & Then
-    mockMvc.perform(get("/images/search")
+    Mockito.when(imageService.searchImagesWithResults(anyString())).thenReturn(response);
+
+    mockMvc.perform(get("/image")
             .param("keyword", keyword))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.results", hasSize(0)));
+        .andExpect(jsonPath("$.results[0].imageId").value(100L));
   }
 }

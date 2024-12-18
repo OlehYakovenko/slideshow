@@ -1,43 +1,43 @@
 package com.practice.slideshow.specification;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.practice.slideshow.entity.ImageEntity;
 import com.practice.slideshow.repository.ImageRepository;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-@DataJpaTest
+@SpringBootTest
 @Testcontainers
 class ImageSpecificationTest {
 
   @Container
-  private static final PostgreSQLContainer<?> POSTGRES_CONTAINER =
+  private static PostgreSQLContainer<?> postgres =
       new PostgreSQLContainer<>("postgres:latest");
+
+  @DynamicPropertySource
+  static void redisProperties(DynamicPropertyRegistry registry) {
+    postgres.start();
+    registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    registry.add("spring.datasource.username", postgres::getUsername);
+    registry.add("spring.datasource.password", postgres::getPassword);
+  }
 
   @Autowired
   private ImageRepository imageRepository;
 
-  @BeforeAll
-  static void startContainer() {
-    POSTGRES_CONTAINER.start();
-    System.setProperty("spring.datasource.url", POSTGRES_CONTAINER.getJdbcUrl());
-    System.setProperty("spring.datasource.username", POSTGRES_CONTAINER.getUsername());
-    System.setProperty("spring.datasource.password", POSTGRES_CONTAINER.getPassword());
-  }
-
   @AfterAll
   static void stopContainer() {
-    POSTGRES_CONTAINER.stop();
+    postgres.stop();
   }
 
   @Test

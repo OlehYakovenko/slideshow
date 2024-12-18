@@ -4,7 +4,6 @@ import com.practice.slideshow.entity.ProofOfPlayEntity;
 import com.practice.slideshow.repository.ProofOfPlayRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor

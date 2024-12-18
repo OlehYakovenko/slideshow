@@ -1,41 +1,41 @@
 package com.practice.slideshow.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.practice.slideshow.entity.ImageEntity;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-@DataJpaTest
+@SpringBootTest
 @Testcontainers
 class ImageRepositoryTest {
 
   @Container
-  private static final PostgreSQLContainer<?> POSTGRES_CONTAINER = new PostgreSQLContainer<>(
-      "postgres:latest");
+  private static PostgreSQLContainer<?> postgres =
+      new PostgreSQLContainer<>("postgres:latest");
+
+  @DynamicPropertySource
+  static void redisProperties(DynamicPropertyRegistry registry) {
+    postgres.start();
+    registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    registry.add("spring.datasource.username", postgres::getUsername);
+    registry.add("spring.datasource.password", postgres::getPassword);
+  }
 
   @Autowired
   private ImageRepository imageRepository;
 
-  @BeforeAll
-  static void startContainer() {
-    POSTGRES_CONTAINER.start();
-    System.setProperty("spring.datasource.url", POSTGRES_CONTAINER.getJdbcUrl());
-    System.setProperty("spring.datasource.username", POSTGRES_CONTAINER.getUsername());
-    System.setProperty("spring.datasource.password", POSTGRES_CONTAINER.getPassword());
-  }
-
   @AfterAll
   static void stopContainer() {
-    POSTGRES_CONTAINER.stop();
+    postgres.stop();
   }
 
   @Test

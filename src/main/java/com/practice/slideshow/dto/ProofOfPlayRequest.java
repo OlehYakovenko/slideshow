@@ -1,7 +1,5 @@
 package com.practice.slideshow.dto;
 
-import jakarta.validation.constraints.NotNull;
+public record ProofOfPlayRequest(Long nextImageId) {
 
-public record ProofOfPlayRequest(
-    @NotNull Long nextImageId
-) {}
+}

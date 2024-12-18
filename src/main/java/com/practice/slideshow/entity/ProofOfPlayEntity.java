@@ -4,16 +4,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
 import jakarta.persistence.Id;
-import jakarta.persistence.criteria.CriteriaBuilder.In;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.Builder;
 
 @Entity
 @Table(name = "proof_of_play")
@@ -36,9 +34,4 @@ public class ProofOfPlayEntity {
 
   @Column(name = "timestamp", updatable = false)
   private LocalDateTime timestamp;
-
-  @PrePersist
-  public void prePersist() {
-    timestamp = LocalDateTime.now();
-  }
 }
