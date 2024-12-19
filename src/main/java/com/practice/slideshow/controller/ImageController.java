@@ -1,8 +1,8 @@
 package com.practice.slideshow.controller;
 
 import com.practice.slideshow.dto.AddImageRequest;
+import com.practice.slideshow.dto.ImageResponse;
 import com.practice.slideshow.dto.ImageSearchResponse;
-import com.practice.slideshow.entity.ImageEntity;
 import com.practice.slideshow.service.ImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,13 +36,13 @@ public class ImageController {
    * @param request The request containing image details.
    * @return The ID of the newly added image.
    */
-  @PostMapping()
+  @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public ImageEntity addImage(@RequestBody @Validated AddImageRequest request) {
+  public ImageResponse addImage(@RequestBody @Validated AddImageRequest request) {
     log.info("Received request to add an image with URL: {} and duration: {}", request.url(), request.duration());
     var image = imageService.addImage(request.url(), request.duration());
     log.info("Image added successfully with ID: {}", image.getId());
-    return image;
+    return ImageResponse.fromEntity(image);
   }
 
   /**
@@ -64,7 +64,7 @@ public class ImageController {
    * @param keyword The keyword to search for.
    * @return A response containing the search results.
    */
-  @GetMapping()
+  @GetMapping
   public ImageSearchResponse search(@RequestParam String keyword) {
     log.info("Received request to search images with keyword: {}", keyword);
     ImageSearchResponse response = imageService.searchImagesWithResults(keyword);

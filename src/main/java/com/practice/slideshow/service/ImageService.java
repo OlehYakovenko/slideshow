@@ -24,6 +24,7 @@ public class ImageService {
   private final ImageRepository imageRepository;
   private final UrlValidationService urlValidationService;
   private final KafkaLoggingService kafkaLoggingService;
+  private final SlideshowService slideshowService;
 
   /**
    * Adds a new image after validating its URL and duration.
@@ -42,7 +43,7 @@ public class ImageService {
         .build();
     ImageEntity savedImage = imageRepository.save(image);
     kafkaLoggingService.logAction("ADD_IMAGE",
-        String.format("Image ID: %d, URL: %s", savedImage.getId(), url));
+        image);
     log.info("Image added successfully with ID: {}", savedImage.getId());
     return savedImage;
   }
@@ -54,13 +55,13 @@ public class ImageService {
    */
   public void deleteImage(Long id) {
     log.info("Attempting to delete image with ID: {}", id);
-    if (!imageRepository.existsById(id)) {
-      log.error("Image with ID: {} not found.", id);
-      throw new ResourceNotFoundException("Image not found, id: " + id);
-    }
-    imageRepository.deleteById(id);
-    kafkaLoggingService.logAction("DELETE_IMAGE",
-        String.format("Deleted Image ID: %d", id));
+    ImageEntity image = imageRepository.findById(id)
+        .orElseThrow(() -> {
+          log.error("Image with ID: {} not found.", id);
+          return new ResourceNotFoundException("Image not found, id: " + id);
+        });
+    kafkaLoggingService.logAction("DELETE_IMAGE", image);
+    imageRepository.delete(image);
     log.info("Image deleted successfully for ID: {}", id);
   }
 
@@ -86,14 +87,15 @@ public class ImageService {
   public ImageSearchResponse searchImagesWithResults(String keyword) {
     log.info("Searching for images and mapping results with keyword: {}", keyword);
     var images = searchImages(keyword);
-    var results = images.stream().map(i ->
-        ImageResult.builder()
-            .imageId(i.getId())
-            .url(i.getUrl())
-            .duration(i.getDuration())
-            .associatedSlideshows(Collections.emptyList())
-            .build()
-    ).toList();
+    var results = images.stream().map(i -> {
+      var associatedSlideshows = slideshowService.findAssociatedSlideshowsByImageId(i.getId());
+      return ImageResult.builder()
+          .imageId(i.getId())
+          .url(i.getUrl())
+          .duration(i.getDuration())
+          .associatedSlideshows(associatedSlideshows)
+          .build();
+    }).toList();
     log.info("Search completed. Found {} results for keyword: {}", results.size(), keyword);
     return ImageSearchResponse.builder().results(results).build();
   }

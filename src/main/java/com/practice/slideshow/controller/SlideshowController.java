@@ -1,7 +1,6 @@
 package com.practice.slideshow.controller;
 
 import com.practice.slideshow.dto.AddSlideshowRequest;
-import com.practice.slideshow.dto.SlideshowImageData;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
 import com.practice.slideshow.service.SlideshowService;
 import lombok.RequiredArgsConstructor;
@@ -32,14 +31,11 @@ public class SlideshowController {
    * @param request The request containing slideshow details.
    * @return The ID of the newly created slideshow.
    */
-  @PostMapping()
+  @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public Long addSlideshow(@RequestBody AddSlideshowRequest request) {
     log.info("Received request to add a slideshow with {} images.", request.images().size());
-    var imageDataList = request.images().stream()
-        .map(s -> new SlideshowImageData(s.url(), s.duration(), s.position()))
-        .toList();
-    var slideshow = slideshowService.addSlideshow(imageDataList);
+    var slideshow = slideshowService.addSlideshow(request.images());
     log.info("Slideshow added successfully with ID: {}", slideshow.getId());
     return slideshow.getId();
   }

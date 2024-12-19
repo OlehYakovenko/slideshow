@@ -1,7 +1,7 @@
 package com.practice.slideshow.service;
 
 import com.practice.slideshow.dto.ImageData;
-import com.practice.slideshow.dto.SlideshowImageData;
+import com.practice.slideshow.dto.SlideshowImageInput;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
 import com.practice.slideshow.entity.SlideshowEntity;
 import com.practice.slideshow.entity.SlideshowImageId;
@@ -33,7 +33,7 @@ public class SlideshowService {
    * @return The created slideshow entity.
    */
   @Transactional
-  public SlideshowEntity addSlideshow(List<SlideshowImageData> imageDataList) {
+  public SlideshowEntity addSlideshow(List<SlideshowImageInput> imageDataList) {
     log.info("Adding a new slideshow with {} images.", imageDataList.size());
 
     SlideshowEntity slideshow = SlideshowEntity.builder().build();
@@ -129,5 +129,19 @@ public class SlideshowService {
         .slideshowId(slideshow.getId())
         .images(images)
         .build();
+  }
+
+  /**
+   * Знаходить усі слайдшоу, пов’язані з даним зображенням.
+   *
+   * @param imageId ID зображення
+   * @return список ідентифікаторів слайдшоу, які містять це зображення
+   */
+  public List<Long> findAssociatedSlideshowsByImageId(Long imageId) {
+    // Припустимо, у нас є проміжна таблиця slideshow_images з полями slideshow_id, image_id
+    // І в репозиторії є метод для пошуку за imageId
+    return slideshowRepository.findByImageId(imageId).stream()
+        .map(SlideshowEntity::getId)
+        .toList();
   }
 }
