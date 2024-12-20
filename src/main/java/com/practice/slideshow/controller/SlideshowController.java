@@ -2,6 +2,7 @@ package com.practice.slideshow.controller;
 
 import com.practice.slideshow.dto.AddSlideshowRequest;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
+import com.practice.slideshow.dto.SlideshowResponse;
 import com.practice.slideshow.service.SlideshowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SlideshowController {
 
   private final SlideshowService slideshowService;
+
   /**
    * Adds a new slideshow with the provided images and durations.
    *
@@ -33,11 +35,11 @@ public class SlideshowController {
    */
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public Long addSlideshow(@RequestBody AddSlideshowRequest request) {
+  public SlideshowResponse addSlideshow(@RequestBody AddSlideshowRequest request) {
     log.info("Received request to add a slideshow with {} images.", request.images().size());
     var slideshow = slideshowService.addSlideshow(request.images());
-    log.info("Slideshow added successfully with ID: {}", slideshow.getId());
-    return slideshow.getId();
+    log.info("Slideshow added successfully with ID: {}", slideshow.id());
+    return slideshow;
   }
 
   /**
@@ -49,7 +51,9 @@ public class SlideshowController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteSlideshow(@PathVariable Long id) {
     log.info("Received request to delete slideshow with ID: {}", id);
+
     slideshowService.deleteSlideshow(id);
+
     log.info("Slideshow deleted successfully for ID: {}", id);
   }
 
@@ -62,7 +66,9 @@ public class SlideshowController {
   @GetMapping("/{id}/slideshowOrder")
   public SlideshowImageOrderResponse getSlideshowOrder(@PathVariable Long id) {
     log.info("Received request to get slideshow order for ID: {}", id);
+
     SlideshowImageOrderResponse response = slideshowService.getSlideshowOrder(id);
+
     log.info("Slideshow order retrieved successfully for ID: {}", id);
     return response;
   }
@@ -76,8 +82,12 @@ public class SlideshowController {
   @PostMapping("/{id}/proof-of-play/{imageId}")
   @ResponseStatus(HttpStatus.OK)
   public void proofOfPlay(@PathVariable Long id, @PathVariable Long imageId) {
-    log.info("Received request to record proof-of-play for slideshow ID: {} and image ID: {}", id, imageId);
+    log.info("Received request to record proof-of-play for slideshow ID: {} and image ID: {}", id,
+        imageId);
+
     slideshowService.recordProofOfPlay(id, imageId);
-    log.info("Proof-of-play recorded successfully for slideshow ID: {} and image ID: {}", id, imageId);
+
+    log.info("Proof-of-play recorded successfully for slideshow ID: {} and image ID: {}", id,
+        imageId);
   }
 }

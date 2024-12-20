@@ -5,34 +5,39 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.practice.slideshow.dto.ImageResponse;
 import com.practice.slideshow.dto.ImageResult;
 import com.practice.slideshow.dto.ImageSearchResponse;
+import com.practice.slideshow.dto.LogEvent;
+import com.practice.slideshow.dto.LogEventType;
 import com.practice.slideshow.entity.ImageEntity;
+import com.practice.slideshow.entity.SlideshowEntity;
 import com.practice.slideshow.exception.ResourceNotFoundException;
 import com.practice.slideshow.repository.ImageRepository;
+import com.practice.slideshow.repository.SlideshowRepository;
 import java.util.Collections;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Example;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
 
   @Mock
   private ImageRepository imageRepository;
+
+  @Mock
+  private SlideshowRepository slideshowRepository;
 
   @Mock
   private UrlValidationService urlValidationService;
@@ -43,10 +48,6 @@ class ImageServiceTest {
   @InjectMocks
   private ImageService imageService;
 
-  @BeforeEach
-  void setup() {
-    MockitoAnnotations.openMocks(this);
-  }
 
   @Test
   void addImage_ShouldAddAndLogImage() {
@@ -57,66 +58,88 @@ class ImageServiceTest {
     doNothing().when(urlValidationService).validateImageUrl(url);
     when(imageRepository.save(any(ImageEntity.class))).thenReturn(savedImage);
 
-    doNothing().when(kafkaLoggingService).logAction(eq("ADD_IMAGE"), anyString());
+    doNothing().when(kafkaLoggingService).logAction(new LogEvent(1L, LogEventType.ADD_IMAGE));
 
-    ImageEntity result = imageService.addImage(url, duration);
+    ImageResponse result = imageService.addImage(url, duration);
 
-    assertNotNull(result.getId());
-    assertEquals(1L, result.getId());
+    assertNotNull(result.imageId());
+    assertEquals(1L, result.imageId());
     verify(urlValidationService).validateImageUrl(url);
-    verify(kafkaLoggingService).logAction(eq("ADD_IMAGE"),
-        contains("Image ID: 1, URL: https://example.com/img.jpg"));
+    verify(kafkaLoggingService).logAction(new LogEvent(1L, LogEventType.ADD_IMAGE));
   }
 
   @Test
   void deleteImage_ShouldDeleteIfExists() {
+    // Given
     Long imageId = 10L;
-    when(imageRepository.existsById(imageId)).thenReturn(true);
+    ImageEntity imageEntity = ImageEntity.builder().id(imageId).url("https://example.com/image.jpg")
+        .build();
 
-    doNothing().when(kafkaLoggingService).logAction(eq("DELETE_IMAGE"), anyString());
+    when(imageRepository.findById(imageId)).thenReturn(Optional.of(imageEntity));
+    doNothing().when(kafkaLoggingService)
+        .logAction(new LogEvent(imageId, LogEventType.DELETE_IMAGE));
 
+    // When
     imageService.deleteImage(imageId);
 
-    verify(imageRepository).deleteById(imageId);
-    verify(kafkaLoggingService).logAction(eq("DELETE_IMAGE"), contains("Deleted Image ID: 10"));
+    // Then
+    verify(imageRepository).delete(imageEntity);
+    verify(kafkaLoggingService).logAction(new LogEvent(imageId, LogEventType.DELETE_IMAGE));
   }
 
   @Test
   void deleteImage_ShouldThrowIfNotExists() {
+    // Given
     Long imageId = 99L;
-    when(imageRepository.existsById(imageId)).thenReturn(false);
+    when(imageRepository.findById(imageId)).thenReturn(Optional.empty());
 
+    // When & Then
     assertThrows(ResourceNotFoundException.class, () -> imageService.deleteImage(imageId));
-
-    verify(kafkaLoggingService, never()).logAction(eq("DELETE_IMAGE"), anyString());
+    verify(kafkaLoggingService, never()).logAction(any(LogEvent.class));
   }
 
   @Test
   void searchImagesWithResults_ShouldReturnResponse() {
+    // Given
     String keyword = "test";
-    ImageEntity image = ImageEntity.builder().id(2L).url("https://example.com/t.jpg").duration(5)
+
+    ImageEntity image = ImageEntity.builder()
+        .id(2L)
+        .url("https://example.com/t.jpg")
+        .duration(5)
         .build();
 
-    when(imageRepository.findAll(any(Example.class))).thenReturn(Collections.singletonList(image));
+    SlideshowEntity slideshow1 = SlideshowEntity.builder().id(101L).build();
+    SlideshowEntity slideshow2 = SlideshowEntity.builder().id(102L).build();
 
+    when(imageRepository.findAll(any(Specification.class))).thenReturn(
+        Collections.singletonList(image));
+    when(slideshowRepository.findByImageId(2L)).thenReturn(List.of(slideshow1, slideshow2));
+
+    // When
     ImageSearchResponse response = imageService.searchImagesWithResults(keyword);
 
+    // Then
+    assertNotNull(response);
     assertEquals(1, response.results().size());
+
     ImageResult result = response.results().get(0);
     assertEquals(2L, result.imageId());
     assertEquals("https://example.com/t.jpg", result.url());
     assertEquals(5, result.duration());
-    assertTrue(result.associatedSlideshows().isEmpty());
+    assertEquals(List.of(101L, 102L), result.associatedSlideshows());
   }
 
   @Test
   void searchImagesWithResults_ShouldReturnEmptyIfNoResults() {
+    // Given
     String keyword = "noresult";
+    when(imageRepository.findAll(any(Specification.class))).thenReturn(Collections.emptyList());
 
-    when(imageRepository.findAll(any(Example.class))).thenReturn(Collections.emptyList());
-
+    // When
     ImageSearchResponse response = imageService.searchImagesWithResults(keyword);
 
+    // Then
     assertNotNull(response);
     assertTrue(response.results().isEmpty());
   }

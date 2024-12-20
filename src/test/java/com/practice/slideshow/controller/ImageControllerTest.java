@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.slideshow.dto.AddImageRequest;
+import com.practice.slideshow.dto.ImageResponse;
 import com.practice.slideshow.dto.ImageResult;
 import com.practice.slideshow.dto.ImageSearchResponse;
 import com.practice.slideshow.service.ImageService;
@@ -37,7 +38,7 @@ class ImageControllerTest {
   void addImage_ShouldReturnCreatedAndImageId() throws Exception {
     // Given
     AddImageRequest request = new AddImageRequest("https://example.com/image.jpg", 10);
-    var image = com.practice.slideshow.entity.ImageEntity.builder().id(1L).url(request.url()).duration(request.duration()).build();
+    var image = ImageResponse.builder().imageId(1L).url(request.url()).duration(request.duration()).build();
     Mockito.when(imageService.addImage(request.url(), request.duration())).thenReturn(image);
 
     // When & Then
@@ -45,7 +46,7 @@ class ImageControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(1))
+        .andExpect(jsonPath("$.imageId").value(1))
         .andExpect(jsonPath("$.url").value("https://example.com/image.jpg"))
         .andExpect(jsonPath("$.duration").value(10));
   }

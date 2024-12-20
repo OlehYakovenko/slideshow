@@ -12,6 +12,7 @@ import com.practice.slideshow.dto.AddSlideshowRequest;
 import com.practice.slideshow.dto.ImageData;
 import com.practice.slideshow.dto.SlideshowImageInput;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
+import com.practice.slideshow.dto.SlideshowResponse;
 import com.practice.slideshow.service.SlideshowService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -40,14 +41,14 @@ class SlideshowControllerTest {
         List.of(new SlideshowImageInput("https://example.com/img.jpg", 10, 1))
     );
 
-    var slideshow = com.practice.slideshow.entity.SlideshowEntity.builder().id(1L).build();
+    var slideshow = SlideshowResponse.builder().id(1L).build();
     Mockito.when(slideshowService.addSlideshow(Mockito.any())).thenReturn(slideshow);
 
     mockMvc.perform(post("/slideshow")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
-        .andExpect(content().string("1"));
+        .andExpect(jsonPath("$.id").value(1L));
   }
 
   @Test

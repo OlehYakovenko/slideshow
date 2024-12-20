@@ -1,12 +1,17 @@
 package com.practice.slideshow.service;
 
+import com.practice.slideshow.dto.ImageMapper;
+import com.practice.slideshow.dto.ImageResponse;
 import com.practice.slideshow.dto.ImageResult;
 import com.practice.slideshow.dto.ImageSearchResponse;
+import com.practice.slideshow.dto.LogEvent;
+import com.practice.slideshow.dto.LogEventType;
 import com.practice.slideshow.entity.ImageEntity;
+import com.practice.slideshow.entity.SlideshowEntity;
 import com.practice.slideshow.exception.ResourceNotFoundException;
 import com.practice.slideshow.repository.ImageRepository;
+import com.practice.slideshow.repository.SlideshowRepository;
 import com.practice.slideshow.specification.ImageSpecification;
-import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +29,8 @@ public class ImageService {
   private final ImageRepository imageRepository;
   private final UrlValidationService urlValidationService;
   private final KafkaLoggingService kafkaLoggingService;
-  private final SlideshowService slideshowService;
+  private final SlideshowRepository slideshowRepository;
+
 
   /**
    * Adds a new image after validating its URL and duration.
@@ -34,18 +40,19 @@ public class ImageService {
    * @return The created ImageEntity.
    */
   @Transactional
-  public ImageEntity addImage(String url, int duration) {
-    log.info("Adding new image with URL: {} and duration: {}", url, duration);
+  public ImageResponse addImage(String url, int duration) {
     urlValidationService.validateImageUrl(url);
-    ImageEntity image = ImageEntity.builder()
+    log.info("Adding new image with URL: {} and duration: {}", url, duration);
+
+    ImageEntity savedImage = imageRepository.save(ImageEntity.builder()
         .url(url)
         .duration(duration)
-        .build();
-    ImageEntity savedImage = imageRepository.save(image);
-    kafkaLoggingService.logAction("ADD_IMAGE",
-        image);
+        .build());
+
+    kafkaLoggingService.logAction(new LogEvent(savedImage.getId(), LogEventType.ADD_IMAGE));
     log.info("Image added successfully with ID: {}", savedImage.getId());
-    return savedImage;
+
+    return ImageMapper.mapFromEntity(savedImage);
   }
 
   /**
@@ -60,7 +67,7 @@ public class ImageService {
           log.error("Image with ID: {} not found.", id);
           return new ResourceNotFoundException("Image not found, id: " + id);
         });
-    kafkaLoggingService.logAction("DELETE_IMAGE", image);
+    kafkaLoggingService.logAction(new LogEvent(image.getId(), LogEventType.DELETE_IMAGE));
     imageRepository.delete(image);
     log.info("Image deleted successfully for ID: {}", id);
   }
@@ -88,7 +95,9 @@ public class ImageService {
     log.info("Searching for images and mapping results with keyword: {}", keyword);
     var images = searchImages(keyword);
     var results = images.stream().map(i -> {
-      var associatedSlideshows = slideshowService.findAssociatedSlideshowsByImageId(i.getId());
+      var associatedSlideshows = slideshowRepository.findByImageId(i.getId())
+          .stream().map(SlideshowEntity::getId)
+          .toList();
       return ImageResult.builder()
           .imageId(i.getId())
           .url(i.getUrl())

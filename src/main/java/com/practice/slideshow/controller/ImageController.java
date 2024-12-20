@@ -39,10 +39,13 @@ public class ImageController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public ImageResponse addImage(@RequestBody @Validated AddImageRequest request) {
-    log.info("Received request to add an image with URL: {} and duration: {}", request.url(), request.duration());
+    log.info("Received request to add an image with URL: {} and duration: {}", request.url(),
+        request.duration());
+
     var image = imageService.addImage(request.url(), request.duration());
-    log.info("Image added successfully with ID: {}", image.getId());
-    return ImageResponse.fromEntity(image);
+
+    log.info("Image added successfully with ID: {}", image.imageId());
+    return image;
   }
 
   /**
@@ -54,7 +57,9 @@ public class ImageController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteImage(@PathVariable Long id) {
     log.info("Received request to delete image with ID: {}", id);
+
     imageService.deleteImage(id);
+
     log.info("Image deleted successfully for ID: {}", id);
   }
 
@@ -67,8 +72,11 @@ public class ImageController {
   @GetMapping
   public ImageSearchResponse search(@RequestParam String keyword) {
     log.info("Received request to search images with keyword: {}", keyword);
+
     ImageSearchResponse response = imageService.searchImagesWithResults(keyword);
-    log.info("Search completed for keyword: {}, found {} results.", keyword, response.results().size());
+
+    log.info("Search completed for keyword: {}, found {} results.", keyword,
+        response.results().size());
     return response;
   }
 }

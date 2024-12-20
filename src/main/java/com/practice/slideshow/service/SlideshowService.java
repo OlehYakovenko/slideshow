@@ -1,8 +1,12 @@
 package com.practice.slideshow.service;
 
 import com.practice.slideshow.dto.ImageData;
+import com.practice.slideshow.dto.ImageMapper;
+import com.practice.slideshow.dto.LogEvent;
+import com.practice.slideshow.dto.LogEventType;
 import com.practice.slideshow.dto.SlideshowImageInput;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
+import com.practice.slideshow.dto.SlideshowResponse;
 import com.practice.slideshow.entity.SlideshowEntity;
 import com.practice.slideshow.entity.SlideshowImageId;
 import com.practice.slideshow.entity.SlideshowImageLink;
@@ -24,6 +28,7 @@ public class SlideshowService {
 
   private final SlideshowRepository slideshowRepository;
   private final ProofOfPlayService proofOfPlayService;
+  private final KafkaLoggingService kafkaLoggingService;
   private final ImageService imageService;
 
   /**
@@ -33,14 +38,14 @@ public class SlideshowService {
    * @return The created slideshow entity.
    */
   @Transactional
-  public SlideshowEntity addSlideshow(List<SlideshowImageInput> imageDataList) {
+  public SlideshowResponse addSlideshow(List<SlideshowImageInput> imageDataList) {
     log.info("Adding a new slideshow with {} images.", imageDataList.size());
 
     SlideshowEntity slideshow = SlideshowEntity.builder().build();
     slideshowRepository.save(slideshow);
 
     var links = imageDataList.stream().map(data -> {
-      var image = imageService.addImage(data.url(), data.duration());
+      var image = ImageMapper.mapToEntity(imageService.addImage(data.url(), data.duration()));
       return SlideshowImageLink.builder()
           .id(new SlideshowImageId(slideshow.getId(), image.getId()))
           .slideshow(slideshow)
@@ -50,8 +55,9 @@ public class SlideshowService {
     }).toList();
 
     slideshow.getSlideshowImages().addAll(links);
+    kafkaLoggingService.logAction(new LogEvent(slideshow.getId(), LogEventType.ADD_SLIDESHOW));
     log.info("Slideshow created successfully with ID: {}", slideshow.getId());
-    return slideshowRepository.save(slideshow);
+    return SlideshowResponse.fromEntity(slideshowRepository.save(slideshow));
   }
 
   /**
@@ -70,6 +76,7 @@ public class SlideshowService {
     }
 
     slideshowRepository.deleteById(id);
+    kafkaLoggingService.logAction(new LogEvent(id, LogEventType.DELETE_SLIDESHOW));
     log.info("Slideshow deleted successfully for ID: {}", id);
   }
 
@@ -132,14 +139,12 @@ public class SlideshowService {
   }
 
   /**
-   * Знаходить усі слайдшоу, пов’язані з даним зображенням.
+   * Finds all slideshows associated with the given image.
    *
-   * @param imageId ID зображення
-   * @return список ідентифікаторів слайдшоу, які містять це зображення
+   * @param imageId ID of the image
+   * @return a list of slideshow IDs that contain this image
    */
   public List<Long> findAssociatedSlideshowsByImageId(Long imageId) {
-    // Припустимо, у нас є проміжна таблиця slideshow_images з полями slideshow_id, image_id
-    // І в репозиторії є метод для пошуку за imageId
     return slideshowRepository.findByImageId(imageId).stream()
         .map(SlideshowEntity::getId)
         .toList();

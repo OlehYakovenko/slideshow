@@ -1,12 +1,13 @@
 package com.practice.slideshow.service;
 
-
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.practice.slideshow.dto.LogEvent;
+import com.practice.slideshow.dto.LogEventType;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -16,52 +17,60 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
-import org.springframework.messaging.Message;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class KafkaLoggingServiceTest {
 
   @Mock
-  KafkaTemplate<String, String> kafkaTemplate;
+  KafkaTemplate<Long, String> kafkaTemplate;
 
   @InjectMocks
   KafkaLoggingService kafkaLoggingService;
 
+  @Mock
+  ObjectMapper objectMapper;
+
   @BeforeEach
   void setup() {
-    MockitoAnnotations.openMocks(this);
+    ReflectionTestUtils.setField(kafkaLoggingService, "topic", "test-topic");
   }
 
   @Test
-  void logAction_ShouldSendMessageIfNotNull() {
-    String actionType = "ADD_IMAGE";
-    String message = "Image added";
+  void logAction_ShouldSendMessageIfNotNull() throws Exception {
+    // Arrange
+    LogEvent logEvent = LogEvent.builder()
+        .id(1L)
+        .eventType(LogEventType.ADD_IMAGE)
+        .build();
 
-    ProducerRecord<String, String> record = new ProducerRecord<>("api-actions", "Action: ADD_IMAGE | Details: Image added");
-    RecordMetadata metadata = new RecordMetadata(new TopicPartition("api-actions", 0), 0,0,0L, 0L, 0,0);
-    SendResult<String, String> sendResult = new SendResult<>(record, metadata);
-    CompletableFuture<SendResult<String,String>> future = CompletableFuture.completedFuture(sendResult);
+    ProducerRecord<Long, String> producerRecord = new ProducerRecord<>("test-topic", 1L,
+        "log-event");
+    RecordMetadata metadata = new RecordMetadata(
+        new TopicPartition("test-topic", 0), 0, 0, System.currentTimeMillis(), 0L, 0, 0);
+    SendResult<Long, String> sendResult = new SendResult<>(producerRecord, metadata);
+    CompletableFuture<SendResult<Long, String>> future = CompletableFuture.completedFuture(
+        sendResult);
 
-    when(kafkaTemplate.send(any(Message.class))).thenReturn(future);
+    when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
+    when(objectMapper.writeValueAsString(logEvent)).thenReturn("log-event");
 
-    kafkaLoggingService.logAction(actionType, message);
+    // Act
+    kafkaLoggingService.logAction(logEvent);
 
-    verify(kafkaTemplate).send(any(Message.class));
+    // Assert
+    verify(kafkaTemplate).send(any(ProducerRecord.class));
   }
 
   @Test
-  void logAction_ShouldNotSendIfActionTypeNull() {
-    kafkaLoggingService.logAction(null, "Message");
-    verify(kafkaTemplate, never()).send(anyString(), anyString());
-  }
+  void logAction_ShouldNotSendIfLogEventIsNull() {
+    // Act
+    kafkaLoggingService.logAction(null);
 
-  @Test
-  void logAction_ShouldNotSendIfMessageNull() {
-    kafkaLoggingService.logAction("ADD_IMAGE", null);
-    verify(kafkaTemplate, never()).send(anyString(), anyString());
+    // Assert
+    verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
   }
 }

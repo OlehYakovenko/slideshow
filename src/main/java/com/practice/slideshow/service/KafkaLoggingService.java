@@ -1,7 +1,10 @@
 package com.practice.slideshow.service;
 
-import com.practice.slideshow.dto.ImageResponse;
-import com.practice.slideshow.entity.ImageEntity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.practice.slideshow.dto.LogEvent;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +24,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class KafkaLoggingService {
 
-  private final KafkaTemplate<String, ImageResponse> kafkaTemplate;
+  private final KafkaTemplate<Long, String> kafkaTemplate;
+  private final ObjectMapper objectMapper;
 
   @Value("${app.kafka.topic}")
   private String topic;
@@ -29,40 +33,50 @@ public class KafkaLoggingService {
   /**
    * Logs an ImageResponse object to the Kafka topic using ProducerRecord.
    *
-   * @param actionType Action type (e.g., "ADD_IMAGE", "DELETE_IMAGE", etc.)
-   * @param entity     The ImageEntity to be converted into ImageResponse.
+   * @param logEvent     The ImageEntity to be converted into ImageResponse.
    */
-  public void logAction(String actionType, ImageEntity entity) {
-    if (actionType == null || entity == null) {
-      log.warn("Action type or entity is null. Skipping log action.");
-      return;
-    }
 
-    String mediaType = actionType.contains("IMAGE") ? "image" : "audio";
-    ImageResponse response = ImageResponse.fromEntity(entity);
-    RecordHeaders headers = new RecordHeaders();
-    headers.add(new RecordHeader("mediaType", mediaType.getBytes()));
-    ProducerRecord<String, ImageResponse> producerRecord = new ProducerRecord<>(
+  public void logAction(LogEvent logEvent) {
+    try {
+      Objects.requireNonNull(logEvent, "Entity cannot be null");
+
+      ProducerRecord<Long, String> producerRecord = buildProducerRecord(
+          logEvent);
+      log.info("Sending ProducerRecord: {}", producerRecord);
+
+      CompletableFuture<SendResult<Long, String>> future = kafkaTemplate.send(producerRecord);
+      future.whenComplete((result, ex) -> {
+        if (ex == null) {
+          log.info("Message sent successfully to topic: {}, partition: {}, offset: {}",
+              result.getRecordMetadata().topic(),
+              result.getRecordMetadata().partition(),
+              result.getRecordMetadata().offset());
+        } else {
+          log.error("Failed to send message to Kafka: {}", ex.getMessage(), ex);
+        }
+      });
+    } catch (JsonProcessingException e){
+      log.error("Failed to create ProducerRecord for event: {}", logEvent, e);
+    } catch (Exception ex){
+      log.error("Failed to connect to Kafka: {}", ex.getMessage(), ex);
+    }
+  }
+
+  private ProducerRecord<Long, String> buildProducerRecord(LogEvent logEvent)
+      throws JsonProcessingException {
+    return new ProducerRecord<>(
         topic,
         null,
         null,
-        String.valueOf(response.imageId()),
-        response,
-        headers
+        logEvent.id(),
+        objectMapper.writeValueAsString(logEvent),
+        buildHeaders()
     );
+  }
 
-    log.info("Sending ImageResponse to Kafka. ActionType: {}, MediaType: {}, Topic: {}",
-        actionType, mediaType, topic);
-
-    CompletableFuture<SendResult<String, ImageResponse>> future = kafkaTemplate.send(producerRecord);
-    future.whenComplete((result, ex) -> {
-      if (ex == null) {
-        log.info("Message sent successfully to topic: {}, offset: {}",
-            result.getRecordMetadata().topic(),
-            result.getRecordMetadata().offset());
-      } else {
-        log.error("Failed to send message to Kafka: {}", ex.getMessage(), ex);
-      }
-    });
+  private RecordHeaders buildHeaders() {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add(new RecordHeader("mediaType", UUID.randomUUID().toString().getBytes()));
+    return headers;
   }
 }
