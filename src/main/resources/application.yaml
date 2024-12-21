@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/slideshow_db
+    url: jdbc:postgresql://db:5432/slideshow_db  # Змінив localhost на db (ім'я сервісу в docker-compose.yml)
     username: postgres
     password: mysecretpassword
   jpa:
@@ -14,10 +14,12 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
   kafka:
     producer:
-      bootstrap-servers: localhost:9092
+      bootstrap-servers: kafka:9092  # Змінив localhost на kafka (ім'я сервісу в docker-compose.yml)
       key-serializer: org.apache.kafka.common.serialization.LongSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
+      bootstrap-servers: kafka:9092  # Додав для споживача
+      group-id: slideshow-consumer-group  # Додав групу споживачів
       key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
   codec:
