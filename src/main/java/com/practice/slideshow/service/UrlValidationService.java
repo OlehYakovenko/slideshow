@@ -27,10 +27,22 @@ public class UrlValidationService {
   }
 
   /**
-   * Validates the provided URL to ensure it points to an image with an allowed content type and that the downloaded file is actually an image.
+   * Validates the given image URL to ensure it points to a valid image resource.
    *
-   * @param url The URL to validate.
-   * @throws InvalidRequestException if the URL does not point to a valid image.
+   * <p>This method performs several checks:
+   * <ul>
+   *   <li>Ensures the URL is syntactically valid and accessible.</li>
+   *   <li>Validates the HTTP Content-Type header to match allowed image types.</li>
+   *   <li>Downloads the image and verifies that it is not empty or corrupted.</li>
+   *   <li>Checks the file content to confirm it is a valid image format.</li>
+   * </ul>
+   *
+   * <p>If any validation step fails, an {@link InvalidRequestException} is thrown with
+   * a detailed error message.</p>
+   *
+   * @param url the image URL to be validated.
+   * @throws InvalidRequestException if the URL is invalid, inaccessible, does not point
+   *         to a valid image resource, or fails any of the validation checks.
    */
   public void validateImageUrl(String url) {
     log.info("Validating image URL: {}", url);

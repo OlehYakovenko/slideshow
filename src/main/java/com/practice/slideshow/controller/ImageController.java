@@ -34,7 +34,8 @@ public class ImageController {
    * Adds a new image with the provided URL and duration.
    *
    * @param request The request containing image details.
-   * @return The ID of the newly added image.
+   * @return an {@link ImageResponse} containing the details of the added image, including
+   *         its unique ID.
    */
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
@@ -80,4 +81,3 @@ public class ImageController {
     return response;
   }
 }
-

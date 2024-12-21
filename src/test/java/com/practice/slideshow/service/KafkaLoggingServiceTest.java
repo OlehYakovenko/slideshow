@@ -56,7 +56,6 @@ class KafkaLoggingServiceTest {
         sendResult);
 
     when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
-    when(objectMapper.writeValueAsString(logEvent)).thenReturn("log-event");
 
     // Act
     kafkaLoggingService.logAction(logEvent);

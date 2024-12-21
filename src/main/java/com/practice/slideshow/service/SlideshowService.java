@@ -137,16 +137,4 @@ public class SlideshowService {
         .images(images)
         .build();
   }
-
-  /**
-   * Finds all slideshows associated with the given image.
-   *
-   * @param imageId ID of the image
-   * @return a list of slideshow IDs that contain this image
-   */
-  public List<Long> findAssociatedSlideshowsByImageId(Long imageId) {
-    return slideshowRepository.findByImageId(imageId).stream()
-        .map(SlideshowEntity::getId)
-        .toList();
-  }
 }

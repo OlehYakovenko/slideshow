@@ -24,27 +24,25 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class KafkaLoggingService {
 
-  private final KafkaTemplate<Long, String> kafkaTemplate;
-  private final ObjectMapper objectMapper;
+  private final KafkaTemplate<Long, LogEvent> kafkaTemplate;
 
   @Value("${app.kafka.topic}")
   private String topic;
 
   /**
-   * Logs an ImageResponse object to the Kafka topic using ProducerRecord.
+   * Logs a LogEvent object to the Kafka topic using ProducerRecord.
    *
-   * @param logEvent     The ImageEntity to be converted into ImageResponse.
+   * @param logEvent The LogEvent to be logged.
    */
-
   public void logAction(LogEvent logEvent) {
     try {
+
       Objects.requireNonNull(logEvent, "Entity cannot be null");
 
-      ProducerRecord<Long, String> producerRecord = buildProducerRecord(
-          logEvent);
+      ProducerRecord<Long, LogEvent> producerRecord = buildProducerRecord(logEvent);
       log.info("Sending ProducerRecord: {}", producerRecord);
 
-      CompletableFuture<SendResult<Long, String>> future = kafkaTemplate.send(producerRecord);
+      CompletableFuture<SendResult<Long, LogEvent>> future = kafkaTemplate.send(producerRecord);
       future.whenComplete((result, ex) -> {
         if (ex == null) {
           log.info("Message sent successfully to topic: {}, partition: {}, offset: {}",
@@ -55,25 +53,37 @@ public class KafkaLoggingService {
           log.error("Failed to send message to Kafka: {}", ex.getMessage(), ex);
         }
       });
-    } catch (JsonProcessingException e){
+    } catch (JsonProcessingException e) {
       log.error("Failed to create ProducerRecord for event: {}", logEvent, e);
-    } catch (Exception ex){
+    } catch (Exception ex) {
       log.error("Failed to connect to Kafka: {}", ex.getMessage(), ex);
     }
   }
 
-  private ProducerRecord<Long, String> buildProducerRecord(LogEvent logEvent)
+  /**
+   * Builds a ProducerRecord for the given LogEvent.
+   *
+   * @param logEvent The LogEvent to be logged.
+   * @return A ProducerRecord containing the LogEvent.
+   * @throws JsonProcessingException If there is an error processing the JSON.
+   */
+  private ProducerRecord<Long, LogEvent> buildProducerRecord(LogEvent logEvent)
       throws JsonProcessingException {
     return new ProducerRecord<>(
         topic,
         null,
         null,
         logEvent.id(),
-        objectMapper.writeValueAsString(logEvent),
+        logEvent,
         buildHeaders()
     );
   }
 
+  /**
+   * Builds the headers for the Kafka message.
+   *
+   * @return RecordHeaders containing the headers for the Kafka message.
+   */
   private RecordHeaders buildHeaders() {
     RecordHeaders headers = new RecordHeaders();
     headers.add(new RecordHeader("mediaType", UUID.randomUUID().toString().getBytes()));

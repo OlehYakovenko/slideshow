@@ -31,13 +31,16 @@ public class SlideshowController {
    * Adds a new slideshow with the provided images and durations.
    *
    * @param request The request containing slideshow details.
-   * @return The ID of the newly created slideshow.
+   * @return a {@link SlideshowResponse} containing the details of the created slideshow,
+   *         including its unique ID and associated metadata.
    */
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public SlideshowResponse addSlideshow(@RequestBody AddSlideshowRequest request) {
     log.info("Received request to add a slideshow with {} images.", request.images().size());
+
     var slideshow = slideshowService.addSlideshow(request.images());
+
     log.info("Slideshow added successfully with ID: {}", slideshow.id());
     return slideshow;
   }
