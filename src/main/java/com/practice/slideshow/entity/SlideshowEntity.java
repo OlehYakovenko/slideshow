@@ -8,7 +8,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,9 +37,4 @@ public class SlideshowEntity {
   @OneToMany(mappedBy = "slideshow", cascade = CascadeType.ALL, orphanRemoval = true)
   @OrderBy("position ASC")
   private List<SlideshowImageLink> slideshowImages = new ArrayList<>();
-
-  @PrePersist
-  public void prePersist() {
-    this.createdAt = LocalDateTime.now();
-  }
 }

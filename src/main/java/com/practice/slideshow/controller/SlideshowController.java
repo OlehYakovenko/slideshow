@@ -1,15 +1,12 @@
 package com.practice.slideshow.controller;
 
 import com.practice.slideshow.dto.AddSlideshowRequest;
-import com.practice.slideshow.dto.ProofOfPlayRequest;
+import com.practice.slideshow.dto.ProofOfPlayResponse;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
-import com.practice.slideshow.entity.SlideshowEntity;
-import com.practice.slideshow.entity.SlideshowImageLink;
-import com.practice.slideshow.exception.ResourceNotFoundException;
+import com.practice.slideshow.dto.SlideshowResponse;
 import com.practice.slideshow.service.SlideshowService;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,56 +17,83 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for managing slideshow-related operations.
+ */
 @RestController
-@RequestMapping("/slideShow")
+@RequestMapping("/slideshow")
 @RequiredArgsConstructor
+@Slf4j
 public class SlideshowController {
 
   private final SlideshowService slideshowService;
 
-  @PostMapping("/addSlideshow")
+  /**
+   * Adds a new slideshow with the provided images and durations.
+   *
+   * @param request The request containing slideshow details.
+   * @return a {@link SlideshowResponse} containing the details of the created slideshow,
+   *         including its unique ID and associated metadata.
+   */
+  @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public Long addSlideshow(@RequestBody AddSlideshowRequest request) {
-    var imageDataList = request.images().stream()
-        .map(s -> new SlideshowService.SlideshowImageData(s.url(), s.duration(), s.position()))
-        .toList();
-    var slideshow = slideshowService.addSlideshow(imageDataList);
-    return slideshow.getId();
+  public SlideshowResponse addSlideshow(@RequestBody AddSlideshowRequest request) {
+    log.info("Received request to add a slideshow with {} images.", request.images().size());
+
+    var slideshow = slideshowService.addSlideshow(request.images());
+
+    log.info("Slideshow added successfully with ID: {}", slideshow.id());
+    return slideshow;
   }
 
-  @DeleteMapping("/deleteSlideshow/{id}")
+  /**
+   * Deletes a slideshow by its ID.
+   *
+   * @param id The ID of the slideshow to delete.
+   */
+  @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteSlideshow(@PathVariable Long id) {
+    log.info("Received request to delete slideshow with ID: {}", id);
+
     slideshowService.deleteSlideshow(id);
+
+    log.info("Slideshow deleted successfully for ID: {}", id);
   }
 
+  /**
+   * Retrieves the order of images in a slideshow by its ID.
+   *
+   * @param id The ID of the slideshow.
+   * @return A response containing the ordered images.
+   */
   @GetMapping("/{id}/slideshowOrder")
   public SlideshowImageOrderResponse getSlideshowOrder(@PathVariable Long id) {
-    SlideshowEntity slideshow = slideshowService.findById(id);
-    if (slideshow == null) {
-      throw new ResourceNotFoundException("Slideshow not found for ID: " + id);
-    }
+    log.info("Received request to get slideshow order for ID: {}", id);
 
-    var images = slideshow.getSlideshowImages().stream()
-        .map(link -> SlideshowImageOrderResponse.ImageData.builder()
-            .imageId(link.getImage().getId())
-            .url(link.getImage().getUrl())
-            .duration(link.getImage().getDuration())
-            .addedAt(link.getImage().getCreatedAt().toString())
-            .position(link.getPosition())
-            .build())
-        .toList();
+    SlideshowImageOrderResponse response = slideshowService.getSlideshowOrder(id);
 
-    return SlideshowImageOrderResponse.builder()
-        .slideshowId(slideshow.getId())
-        .images(images)
-        .build();
+    log.info("Slideshow order retrieved successfully for ID: {}", id);
+    return response;
   }
 
+  /**
+   * Records proof-of-play for a specific image in a slideshow.
+   *
+   * @param id the unique identifier of the slideshow for which the proof-of-play event is recorded.
+   * @param imageId the unique identifier of the image that was displayed in the slideshow.
+   * @return a {@link ProofOfPlayResponse} containing the details of the recorded proof-of-play event.
+   */
   @PostMapping("/{id}/proof-of-play/{imageId}")
   @ResponseStatus(HttpStatus.OK)
-  public void proofOfPlay(@PathVariable Long id,
-      @PathVariable Long imageId) {
-    slideshowService.recordProofOfPlay(id, imageId);
+  public ProofOfPlayResponse proofOfPlay(@PathVariable Long id, @PathVariable Long imageId) {
+    log.info("Received request to record proof-of-play for slideshow ID: {} and image ID: {}", id,
+        imageId);
+
+    var response = slideshowService.recordProofOfPlay(id, imageId);
+
+    log.info("Proof-of-play recorded successfully for slideshow ID: {} and image ID: {}", id,
+        imageId);
+    return response;
   }
 }

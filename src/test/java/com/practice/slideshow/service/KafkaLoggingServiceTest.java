@@ -1,62 +1,75 @@
 package com.practice.slideshow.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.practice.slideshow.dto.LogEvent;
+import com.practice.slideshow.dto.LogEventType;
+import java.util.concurrent.CompletableFuture;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.TopicPartition;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.kafka.core.KafkaTemplate;
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class KafkaLoggingServiceTest {
 
   @Mock
-  private KafkaTemplate<String, String> kafkaTemplate;
+  KafkaTemplate<Long, String> kafkaTemplate;
 
   @InjectMocks
-  private KafkaLoggingService kafkaLoggingService;
+  KafkaLoggingService kafkaLoggingService;
 
-  @Test
-  void shouldLogActionSuccessfully() {
-    // Given
-    String actionType = "ADD_IMAGE";
-    String message = "Image added with ID: 1";
-    String expectedLog = "Action: ADD_IMAGE | Details: Image added with ID: 1";
+  @Mock
+  ObjectMapper objectMapper;
 
-    // When
-    kafkaLoggingService.logAction(actionType, message);
-
-    // Then
-    verify(kafkaTemplate, times(1)).send("api-actions", expectedLog);
+  @BeforeEach
+  void setup() {
+    ReflectionTestUtils.setField(kafkaLoggingService, "topic", "test-topic");
   }
 
   @Test
-  void shouldNotLogWhenActionTypeOrMessageIsNull() {
-    // When
-    kafkaLoggingService.logAction(null, "Some message");
-    kafkaLoggingService.logAction("ADD_IMAGE", null);
+  void logAction_ShouldSendMessageIfNotNull() throws Exception {
+    // Arrange
+    LogEvent logEvent = LogEvent.builder()
+        .id(1L)
+        .eventType(LogEventType.ADD_IMAGE)
+        .build();
 
-    // Then
-    verify(kafkaTemplate, never()).send(anyString(), anyString());
+    ProducerRecord<Long, String> producerRecord = new ProducerRecord<>("test-topic", 1L,
+        "log-event");
+    RecordMetadata metadata = new RecordMetadata(
+        new TopicPartition("test-topic", 0), 0, 0, System.currentTimeMillis(), 0L, 0, 0);
+    SendResult<Long, String> sendResult = new SendResult<>(producerRecord, metadata);
+    CompletableFuture<SendResult<Long, String>> future = CompletableFuture.completedFuture(
+        sendResult);
+
+    when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
+
+    // Act
+    kafkaLoggingService.logAction(logEvent);
+
+    // Assert
+    verify(kafkaTemplate).send(any(ProducerRecord.class));
   }
 
   @Test
-  void shouldHandleKafkaSendFailureGracefully() {
-    // Given
-    String actionType = "DELETE_IMAGE";
-    String message = "Image deleted with ID: 1";
-    String expectedLog = "Action: DELETE_IMAGE | Details: Image deleted with ID: 1";
+  void logAction_ShouldNotSendIfLogEventIsNull() {
+    // Act
+    kafkaLoggingService.logAction(null);
 
-    doThrow(new RuntimeException("Kafka unavailable"))
-        .when(kafkaTemplate).send("api-actions", expectedLog);
-
-    // When
-    assertDoesNotThrow(() -> kafkaLoggingService.logAction(actionType, message));
-
-    // Then
-    verify(kafkaTemplate, times(1)).send("api-actions", expectedLog);
+    // Assert
+    verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
   }
 }
