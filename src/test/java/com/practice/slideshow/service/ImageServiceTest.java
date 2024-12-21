@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -109,12 +110,18 @@ class ImageServiceTest {
         .duration(5)
         .build();
 
-    SlideshowEntity slideshow1 = SlideshowEntity.builder().id(101L).build();
-    SlideshowEntity slideshow2 = SlideshowEntity.builder().id(102L).build();
+    SlideshowRepository.AssociatedSlideshowProjection projection1 = mock(SlideshowRepository.AssociatedSlideshowProjection.class);
+    when(projection1.getImageId()).thenReturn(2L);
+    when(projection1.getSlideshowId()).thenReturn(101L);
 
-    when(imageRepository.findAll(any(Specification.class))).thenReturn(
-        Collections.singletonList(image));
-    when(slideshowRepository.findByImageId(2L)).thenReturn(List.of(slideshow1, slideshow2));
+    SlideshowRepository.AssociatedSlideshowProjection projection2 = mock(SlideshowRepository.AssociatedSlideshowProjection.class);
+    when(projection2.getImageId()).thenReturn(2L);
+    when(projection2.getSlideshowId()).thenReturn(102L);
+
+    when(imageRepository.findAll(any(Specification.class)))
+        .thenReturn(Collections.singletonList(image));
+    when(slideshowRepository.findAssociatedSlideshowsByImageIds(List.of(2L)))
+        .thenReturn(List.of(projection1, projection2));
 
     // When
     ImageSearchResponse response = imageService.searchImagesWithResults(keyword);

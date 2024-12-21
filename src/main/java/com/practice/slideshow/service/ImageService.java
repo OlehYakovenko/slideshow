@@ -1,6 +1,6 @@
 package com.practice.slideshow.service;
 
-import com.practice.slideshow.dto.ImageMapper;
+import com.practice.slideshow.mapper.ImageMapper;
 import com.practice.slideshow.dto.ImageResponse;
 import com.practice.slideshow.dto.ImageResult;
 import com.practice.slideshow.dto.ImageSearchResponse;
@@ -12,7 +12,9 @@ import com.practice.slideshow.exception.ResourceNotFoundException;
 import com.practice.slideshow.repository.ImageRepository;
 import com.practice.slideshow.repository.SlideshowRepository;
 import com.practice.slideshow.specification.ImageSpecification;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -93,18 +95,26 @@ public class ImageService {
   @Transactional(readOnly = true)
   public ImageSearchResponse searchImagesWithResults(String keyword) {
     log.info("Searching for images and mapping results with keyword: {}", keyword);
+
     var images = searchImages(keyword);
-    var results = images.stream().map(i -> {
-      var associatedSlideshows = slideshowRepository.findByImageId(i.getId())
-          .stream().map(SlideshowEntity::getId)
-          .toList();
-      return ImageResult.builder()
-          .imageId(i.getId())
-          .url(i.getUrl())
-          .duration(i.getDuration())
-          .associatedSlideshows(associatedSlideshows)
-          .build();
-    }).toList();
+    var imageIds = images.stream().map(ImageEntity::getId).toList();
+
+    var associatedSlideshowsMap = slideshowRepository.findAssociatedSlideshowsByImageIds(imageIds)
+        .stream()
+        .collect(Collectors.groupingBy(
+            SlideshowRepository.AssociatedSlideshowProjection::getImageId,
+            Collectors.mapping(SlideshowRepository.AssociatedSlideshowProjection::getSlideshowId,
+                Collectors.toList())
+        ));
+
+    var results = images.stream().map(i -> ImageResult.builder()
+        .imageId(i.getId())
+        .url(i.getUrl())
+        .duration(i.getDuration())
+        .associatedSlideshows(
+            associatedSlideshowsMap.getOrDefault(i.getId(), Collections.emptyList()))
+        .build()).toList();
+
     log.info("Search completed. Found {} results for keyword: {}", results.size(), keyword);
     return ImageSearchResponse.builder().results(results).build();
   }

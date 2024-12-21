@@ -1,5 +1,6 @@
-package com.practice.slideshow.dto;
+package com.practice.slideshow.mapper;
 
+import com.practice.slideshow.dto.ImageResponse;
 import com.practice.slideshow.entity.ImageEntity;
 import java.time.LocalDateTime;
 

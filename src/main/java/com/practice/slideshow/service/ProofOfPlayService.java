@@ -1,5 +1,6 @@
 package com.practice.slideshow.service;
 
+import com.practice.slideshow.dto.ProofOfPlayResponse;
 import com.practice.slideshow.entity.ProofOfPlayEntity;
 import com.practice.slideshow.repository.ProofOfPlayRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,9 +27,9 @@ public class ProofOfPlayService {
    * @param slideshowId the unique identifier of the slideshow.
    * @param imageId the unique identifier of the image.
    */
-  public void record(Long slideshowId, Long imageId) {
+  public ProofOfPlayResponse record(Long slideshowId, Long imageId) {
     if (slideshowId == null || imageId == null) {
-      return;
+      return null;
     }
 
     ProofOfPlayEntity proofOfPlay = ProofOfPlayEntity.builder()
@@ -36,6 +37,6 @@ public class ProofOfPlayService {
         .imageId(imageId)
         .build();
 
-    proofOfPlayRepository.save(proofOfPlay);
+    return ProofOfPlayResponse.mapFromEntity(proofOfPlayRepository.save(proofOfPlay));
   }
 }

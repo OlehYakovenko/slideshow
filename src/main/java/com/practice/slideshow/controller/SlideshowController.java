@@ -1,6 +1,7 @@
 package com.practice.slideshow.controller;
 
 import com.practice.slideshow.dto.AddSlideshowRequest;
+import com.practice.slideshow.dto.ProofOfPlayResponse;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
 import com.practice.slideshow.dto.SlideshowResponse;
 import com.practice.slideshow.service.SlideshowService;
@@ -79,18 +80,20 @@ public class SlideshowController {
   /**
    * Records proof-of-play for a specific image in a slideshow.
    *
-   * @param id      The ID of the slideshow.
-   * @param imageId The ID of the image.
+   * @param id the unique identifier of the slideshow for which the proof-of-play event is recorded.
+   * @param imageId the unique identifier of the image that was displayed in the slideshow.
+   * @return a {@link ProofOfPlayResponse} containing the details of the recorded proof-of-play event.
    */
   @PostMapping("/{id}/proof-of-play/{imageId}")
   @ResponseStatus(HttpStatus.OK)
-  public void proofOfPlay(@PathVariable Long id, @PathVariable Long imageId) {
+  public ProofOfPlayResponse proofOfPlay(@PathVariable Long id, @PathVariable Long imageId) {
     log.info("Received request to record proof-of-play for slideshow ID: {} and image ID: {}", id,
         imageId);
 
-    slideshowService.recordProofOfPlay(id, imageId);
+    var response = slideshowService.recordProofOfPlay(id, imageId);
 
     log.info("Proof-of-play recorded successfully for slideshow ID: {} and image ID: {}", id,
         imageId);
+    return response;
   }
 }

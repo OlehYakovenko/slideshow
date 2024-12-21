@@ -14,4 +14,15 @@ public interface SlideshowRepository extends JpaRepository<SlideshowEntity, Long
 
   @Query("SELECT s FROM SlideshowEntity s JOIN s.slideshowImages li WHERE li.image.id = :imageId")
   List<SlideshowEntity> findByImageId(@Param("imageId") Long imageId);
+
+  @Query("SELECT s.id AS slideshowId, sil.image.id AS imageId " +
+      "FROM SlideshowEntity s " +
+      "JOIN s.slideshowImages sil " +
+      "WHERE sil.image.id IN :imageIds")
+  List<AssociatedSlideshowProjection> findAssociatedSlideshowsByImageIds(@Param("imageIds") List<Long> imageIds);
+
+  interface AssociatedSlideshowProjection {
+    Long getImageId();
+    Long getSlideshowId();
+  }
 }

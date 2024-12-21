@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.slideshow.dto.AddSlideshowRequest;
 import com.practice.slideshow.dto.ImageData;
+import com.practice.slideshow.dto.ProofOfPlayResponse;
 import com.practice.slideshow.dto.SlideshowImageInput;
 import com.practice.slideshow.dto.SlideshowImageOrderResponse;
 import com.practice.slideshow.dto.SlideshowResponse;
@@ -82,9 +83,15 @@ class SlideshowControllerTest {
   void proofOfPlay_ShouldReturnOk() throws Exception {
     Long slideshowId = 3L;
     Long imageId = 10L;
-    Mockito.doNothing().when(slideshowService).recordProofOfPlay(slideshowId, imageId);
 
-    mockMvc.perform(post("/slideshow/{id}/proof-of-play/{imageId}", slideshowId, imageId))
-        .andExpect(status().isOk());
+    ProofOfPlayResponse mockResponse = new ProofOfPlayResponse(1L, slideshowId, imageId);
+
+    Mockito.when(slideshowService.recordProofOfPlay(slideshowId, imageId)).thenReturn(mockResponse);
+
+    mockMvc.perform(post("/slideshow/{id}/proof-of-play/{imageId}", slideshowId, imageId)
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.slideshowId").value(slideshowId))
+        .andExpect(jsonPath("$.imageId").value(imageId));
   }
 }

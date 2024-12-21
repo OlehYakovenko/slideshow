@@ -1,7 +1,8 @@
 package com.practice.slideshow.service;
 
 import com.practice.slideshow.dto.ImageData;
-import com.practice.slideshow.dto.ImageMapper;
+import com.practice.slideshow.dto.ProofOfPlayResponse;
+import com.practice.slideshow.mapper.ImageMapper;
 import com.practice.slideshow.dto.LogEvent;
 import com.practice.slideshow.dto.LogEventType;
 import com.practice.slideshow.dto.SlideshowImageInput;
@@ -44,15 +45,9 @@ public class SlideshowService {
     SlideshowEntity slideshow = SlideshowEntity.builder().build();
     slideshowRepository.save(slideshow);
 
-    var links = imageDataList.stream().map(data -> {
-      var image = ImageMapper.mapToEntity(imageService.addImage(data.url(), data.duration()));
-      return SlideshowImageLink.builder()
-          .id(new SlideshowImageId(slideshow.getId(), image.getId()))
-          .slideshow(slideshow)
-          .image(image)
-          .position(data.position())
-          .build();
-    }).toList();
+    var links = imageDataList.stream()
+        .map(data -> createSlideshowImageLink(data, slideshow))
+        .toList();
 
     slideshow.getSlideshowImages().addAll(links);
     kafkaLoggingService.logAction(new LogEvent(slideshow.getId(), LogEventType.ADD_SLIDESHOW));
@@ -104,9 +99,9 @@ public class SlideshowService {
    * @param currentImageId The ID of the current image.
    */
   @Transactional
-  public void recordProofOfPlay(Long slideshowId, Long currentImageId) {
+  public ProofOfPlayResponse recordProofOfPlay(Long slideshowId, Long currentImageId) {
     log.info("Recording proof-of-play for slideshow ID: {} and image ID: {}", slideshowId, currentImageId);
-    proofOfPlayService.record(slideshowId, currentImageId);
+    return proofOfPlayService.record(slideshowId, currentImageId);
   }
 
   /**
@@ -135,6 +130,16 @@ public class SlideshowService {
     return SlideshowImageOrderResponse.builder()
         .slideshowId(slideshow.getId())
         .images(images)
+        .build();
+  }
+
+  private SlideshowImageLink createSlideshowImageLink(SlideshowImageInput data, SlideshowEntity slideshow) {
+    var image = ImageMapper.mapToEntity(imageService.addImage(data.url(), data.duration()));
+    return SlideshowImageLink.builder()
+        .id(new SlideshowImageId(slideshow.getId(), image.getId()))
+        .slideshow(slideshow)
+        .image(image)
+        .position(data.position())
         .build();
   }
 }
