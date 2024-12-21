@@ -69,8 +69,8 @@ public class ImageService {
           log.error("Image with ID: {} not found.", id);
           return new ResourceNotFoundException("Image not found, id: " + id);
         });
-    kafkaLoggingService.logAction(new LogEvent(image.getId(), LogEventType.DELETE_IMAGE));
     imageRepository.delete(image);
+    kafkaLoggingService.logAction(new LogEvent(image.getId(), LogEventType.DELETE_IMAGE));
     log.info("Image deleted successfully for ID: {}", id);
   }
 

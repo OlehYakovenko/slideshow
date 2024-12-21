@@ -53,8 +53,6 @@ public class KafkaLoggingService {
           log.error("Failed to send message to Kafka: {}", ex.getMessage(), ex);
         }
       });
-    } catch (JsonProcessingException e) {
-      log.error("Failed to create ProducerRecord for event: {}", logEvent, e);
     } catch (Exception ex) {
       log.error("Failed to connect to Kafka: {}", ex.getMessage(), ex);
     }
@@ -65,10 +63,9 @@ public class KafkaLoggingService {
    *
    * @param logEvent The LogEvent to be logged.
    * @return A ProducerRecord containing the LogEvent.
-   * @throws JsonProcessingException If there is an error processing the JSON.
+   *
    */
-  private ProducerRecord<Long, LogEvent> buildProducerRecord(LogEvent logEvent)
-      throws JsonProcessingException {
+  private ProducerRecord<Long, LogEvent> buildProducerRecord(LogEvent logEvent) {
     return new ProducerRecord<>(
         topic,
         null,
